@@ -23,10 +23,12 @@ foo = @__FILE__
 @eval @everywhere f = $foo
 @everywhere println(f)
 @everywhere (program_file_dir, program_file_name) = splitdir(f)
-@everywhere include(joinpath(program_file_dir, "characterize.jl"))
+@everywhere include(joinpath(program_file_dir, "characterize_S2.jl"))
+@everywhere include(joinpath(program_file_dir, "characterize_S3.jl"))
 @everywhere include(joinpath(program_file_dir, "signed_distance_mod.jl"))
 @everywhere include(joinpath(program_file_dir, "position_mod.jl"))
-
+@everywhere include(joinpath(program_file_dir, "rotation_matrix.jl"))
+@everywhere include(joinpath(program_file_dir, "generate_random_unit_quaternion.jl"))
 
 function run_characterization()
 	# Inititalization of random number generation device.
@@ -54,13 +56,13 @@ function run_characterization()
 	println(join(("Reading characerization input from file ", input_file_path, "...")))
 	(	output_generation_path::String,
 		number_of_samples::Int64,
-		d::Array{Float64, 1},
+		d2::Array{Float64, 1},
+		d3::Array{Float64, 1},
+		theta3::Array{Float64, 1},
 		number_of_cells_x::Int64,
 		number_of_cells_y::Int64,
 		number_of_cells_z::Int64,
 		output_file_path::String) = read_input(input_file_path)
-	println(d)
-	println(number_of_samples)
 
 	# Read generation output from file.
 	println(join(("Reading generation output from file ", output_generation_path, "...")))
@@ -188,9 +190,10 @@ function run_characterization()
 	number_of_samples_per_worker[1:number_of_samples_remaining] += 1
 	println(number_of_samples_per_worker)
 
-	S2::Array{Float64, 1} = zeros(size(d))
+	# Compute S2.
+	S2::Array{Float64, 1} = zeros(size(d2))
 	S2 = @parallel (+) for current_worker = 1:number_of_workers
-		characterize(
+		characterize_S2(
 			particle_type,
 			R,
 			Lx,
@@ -213,10 +216,42 @@ function run_characterization()
 			A32,
 			A33,
 			number_of_samples_per_worker[current_worker],
-			d,
+			d2,
 			cell_lists)
 	end
 	S2 /= convert(Float64, number_of_samples)
+
+	# Compute S2.
+	S3::Array{Float64, 1} = zeros(1 + length(d3) * length(theta3))
+	S3 = @parallel (+) for current_worker = 1:number_of_workers
+		characterize_S3(
+			particle_type,
+			R,
+			Lx,
+			Ly,
+			Lz,
+			X,
+			Y,
+			Z,
+			Q0,
+			Q1,
+			Q2,
+			Q3,
+			A11,
+			A12,
+			A13,
+			A21,
+			A22,
+			A23,
+			A31,
+			A32,
+			A33,
+			number_of_samples_per_worker[current_worker],
+			d3,
+			theta3,
+			cell_lists)
+	end
+	S3 /= convert(Float64, number_of_samples)
 
 	# Kill all workers.
 	rmprocs(workers(); waitfor = typemax(Int))
@@ -228,8 +263,11 @@ function run_characterization()
 	write_output(
 		output_file_path,
 		number_of_samples,
-		d,
+		d2,
 		S2,
+		d3,
+		theta3,
+		S3,
 		t_exec)
 	println(join(("Output written to ", output_file_path, ".")))
 	println("Finished.")

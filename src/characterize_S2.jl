@@ -1,27 +1,27 @@
-function characterize(	particle_type::String,
-					R::Array{Float64, 2},
-					Lx::Float64,
-					Ly::Float64,
-					Lz::Float64,
-					X::Array{Float64, 1},
-					Y::Array{Float64, 1},
-					Z::Array{Float64, 1},
-					Q0::Array{Float64, 1},
-					Q1::Array{Float64, 1},
-					Q2::Array{Float64, 1},
-					Q3::Array{Float64, 1},
-					A11::Array{Float64, 1},
-					A12::Array{Float64, 1},
-					A13::Array{Float64, 1},
-					A21::Array{Float64, 1},
-					A22::Array{Float64, 1},
-					A23::Array{Float64, 1},
-					A31::Array{Float64, 1},
-					A32::Array{Float64, 1},
-					A33::Array{Float64, 1},
-					number_of_samples::Int64,
-					d::Array{Float64, 1},
-					cell_lists::Array{Array{Int64, 1}, 3})
+function characterize_S2(	particle_type::String,
+							R::Array{Float64, 2},
+							Lx::Float64,
+							Ly::Float64,
+							Lz::Float64,
+							X::Array{Float64, 1},
+							Y::Array{Float64, 1},
+							Z::Array{Float64, 1},
+							Q0::Array{Float64, 1},
+							Q1::Array{Float64, 1},
+							Q2::Array{Float64, 1},
+							Q3::Array{Float64, 1},
+							A11::Array{Float64, 1},
+							A12::Array{Float64, 1},
+							A13::Array{Float64, 1},
+							A21::Array{Float64, 1},
+							A22::Array{Float64, 1},
+							A23::Array{Float64, 1},
+							A31::Array{Float64, 1},
+							A32::Array{Float64, 1},
+							A33::Array{Float64, 1},
+							number_of_samples::Int64,
+							d2::Array{Float64, 1},
+							cell_lists::Array{Array{Int64, 1}, 3})
 
 	# Number of cells.
 	(number_of_cells_x::Int64, number_of_cells_y::Int64, number_of_cells_z::Int64) = size(cell_lists)
@@ -29,7 +29,7 @@ function characterize(	particle_type::String,
 	current_particle_in_cell::Int64 = 0
 	is_void::Bool = true
 
-	number_of_points::Int64 = length(d)
+	number_of_points::Int64 = length(d2)
 	x::Array{Float64, 1} = zeros(number_of_points)
 	y::Array{Float64, 1} = zeros(number_of_points)
 	z::Array{Float64, 1} = zeros(number_of_points)
@@ -65,9 +65,9 @@ function characterize(	particle_type::String,
 		vz /= magnitude
 
 		# Create vectors of sample coordinates in relative coordinates.
-		x = x0 + vx * d
-		y = y0 + vy * d
-		z = z0 + vz * d
+		x = x0 + vx * d2
+		y = y0 + vy * d2
+		z = z0 + vz * d2
 
 		# Convert to absolute coordinates (w.r.t. to Lx, Ly, Lz)
 		for current_point = 1:number_of_points
