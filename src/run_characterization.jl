@@ -53,13 +53,14 @@ function run_characterization()
 	# Read characerization input from file.
 	println(join(("Reading characerization input from file ", input_file_path, "...")))
 	(	output_generation_path::String,
-		distance_max::Float64,
-		number_of_points::Int64,
+		d::Array{Float64, 1},
 		number_of_samples::Int64,
 		number_of_cells_x::Int64,
 		number_of_cells_y::Int64,
 		number_of_cells_z::Int64,
 		output_file_path::String) = read_input(input_file_path)
+	println(d)
+	println(number_of_samples)
 
 	# Read generation output from file.
 	println(join(("Reading generation output from file ", output_generation_path, "...")))
@@ -76,7 +77,7 @@ function run_characterization()
 		Q1::Array{Float64, 1},
 		Q2::Array{Float64, 1},
 		Q3::Array{Float64, 1},
-		execution_time_diffusion::Float64) = read_output_generation(output_generation_path)
+		execution_time_generation::Float64) = read_output_generation(output_generation_path)
 	number_of_particles::Int64 = length(X)
 
 	# Characteristic/rotation matrix entries.
@@ -184,13 +185,13 @@ function run_characterization()
 
 	# Run characterization.
 	number_of_workers::Int64 = nworkers() # This is determined by the the '-p' input flag to Julia.
-	number_of_points_per_worker::Array{Int64, 1} = convert(Array{Int64, 1}, floor(number_of_diffusers / number_of_workers) * ones(number_of_workers))
-	number_of_diffusers_remaining::Int64 = number_of_diffusers - sum(number_of_diffusers_per_worker)
-	number_of_diffusers_per_worker[1:number_of_diffusers_remaining] += 1
-	println(number_of_diffusers_per_worker)
+	number_of_samples_per_worker::Array{Int64, 1} = convert(Array{Int64, 1}, floor(number_of_samples / number_of_workers) * ones(number_of_workers))
+	number_of_samples_remaining::Int64 = number_of_samples - sum(number_of_samples_per_worker)
+	number_of_samples_per_worker[1:number_of_samples_remaining] += 1
+	println(number_of_samples_per_worker)
 
-	output::Array{Float64, 1} = zeros(4*number_of_time_points_coarse+1)
-	output = @parallel (+) for current_worker = 1:number_of_workers
+	S2::Array{Float64, 1} = zeros(size(d))
+	S2 = @parallel (+) for current_worker = 1:number_of_workers
 		characterize(
 			particle_type,
 			R,
@@ -213,12 +214,8 @@ function run_characterization()
 			A31,
 			A32,
 			A33,
-			D0,
-			deltat_coarse,
-			number_of_time_points_coarse,
-			number_of_time_points_fine_per_coarse,
-			number_of_diffusers_per_worker[current_worker],
-			boundary_condition,
+			number_of_samples_per_worker[current_worker],
+			d,
 			cell_lists)
 	end
 
