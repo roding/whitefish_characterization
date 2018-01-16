@@ -3,20 +3,14 @@ function read_output(file_path::String)
 	file_string::String = readstring(file_stream)
 	close(file_stream)
 
-	diagnostic_diffusion_coefficient_ratio::Float64 = read_key(file_string, "diagnostic_diffusion_coefficient_ratio", Float64)
-	t::Array{Float64, 1} = read_key(file_string, "time", Array{Float64, 1})
-	msd::Array{Float64, 1} = read_key(file_string, "mean_square_displacement_x", Array{Float64, 1})
-	msd_x::Array{Float64, 1} = read_key(file_string, "mean_square_displacement_x", Array{Float64, 1})
-	msd_y::Array{Float64, 1} = read_key(file_string, "mean_square_displacement_y", Array{Float64, 1})
-	msd_z::Array{Float64, 1} = read_key(file_string, "mean_square_displacement_z", Array{Float64, 1})
+	number_of_samples::Int64 = read_key(file_string, "number_of_samples", Int64)
+	d::Array{Float64, 1} = read_key(file_string, "d", Array{Float64, 1})
+	S2::Array{Float64, 1} = read_key(file_string, "S2", Array{Float64, 1})
 	t_exec::Float64 = read_key(file_string, "execution_time", Float64)
 
 	return (
-		diagnostic_diffusion_coefficient_ratio,
-		t,
-		msd,
-		msd_x,
-		msd_y,
-		msd_z,
+		number_of_samples,
+		d,
+		S2,
 		t_exec)
 end
