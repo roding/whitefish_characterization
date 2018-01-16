@@ -1,9 +1,3 @@
 function position_mod(x::Float64, L::Float64)
-	if x < 0.0
-		x += L
-	elseif x > L
-		x -= L
-	end
-
-	return x
+	return mod(x, L) # For characterization we need to do full modulus operation.
 end

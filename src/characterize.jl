@@ -1,4 +1,4 @@
-function diffuse(	particle_type::String,
+function characterize(	particle_type::String,
 					R::Array{Float64, 2},
 					Lx::Float64,
 					Ly::Float64,
@@ -46,7 +46,7 @@ function diffuse(	particle_type::String,
 	number_of_particles_current_cell::Int64 = 0
 
 	for current_sample = 1:number_of_samples
-		if mod(current_sample, 10) == 0
+		if mod(current_sample, 100) == 0
 			println(current_sample)
 		end
 
@@ -78,50 +78,49 @@ function diffuse(	particle_type::String,
 
 		# Check whether void or solid for each sample point.
 		for current_point = 1:number_of_points
-			is_void = false
-			while !is_void
-				current_cell_x = convert(Int64, ceil(x[current_point] / Lx * convert(Float64, number_of_cells_x)))
-				current_cell_y = convert(Int64, ceil(y[current_point] / Ly * convert(Float64, number_of_cells_y)))
-				current_cell_z = convert(Int64, ceil(z[current_point] / Lz * convert(Float64, number_of_cells_z)))
-				number_of_particles_current_cell = length(cell_lists[current_cell_x, current_cell_y, current_cell_z])
-				current_cell_list = cell_lists[current_cell_x, current_cell_y, current_cell_z]
 
-				is_void = true
-				current_particle_in_cell = 0
-				while current_particle_in_cell < number_of_particles_current_cell && is_void
-					current_particle_in_cell += 1
-					vx = signed_distance_mod(x[current_point], X[current_cell_list[current_particle_in_cell]], Lx)
-					vy = signed_distance_mod(y[current_point], Y[current_cell_list[current_particle_in_cell]], Ly)
-					vz = signed_distance_mod(z[current_point], Z[current_cell_list[current_particle_in_cell]], Lz)
+			current_cell_x = convert(Int64, ceil(x[current_point] / Lx * convert(Float64, number_of_cells_x)))
+			current_cell_y = convert(Int64, ceil(y[current_point] / Ly * convert(Float64, number_of_cells_y)))
+			current_cell_z = convert(Int64, ceil(z[current_point] / Lz * convert(Float64, number_of_cells_z)))
+			number_of_particles_current_cell = length(cell_lists[current_cell_x, current_cell_y, current_cell_z])
+			current_cell_list = cell_lists[current_cell_x, current_cell_y, current_cell_z]
 
-					if particle_type == "sphere"
-						if vx^2 + vy^2 + vz^2 <= R[current_cell_list[current_particle_in_cell], 1]^2
-							is_void = false
-						end
-					elseif particle_type == "ellipse"
-						# Not supported for S2.
-					elseif particle_type == "ellipsoid"
-						if vx * (A11[current_cell_list[current_particle_in_cell]] * vx + A12[current_cell_list[current_particle_in_cell]] * vy + A13[current_cell_list[current_particle_in_cell]] * vz) + vy * (A21[current_cell_list[current_particle_in_cell]] * vx + A22[current_cell_list[current_particle_in_cell]] * vy + A23[current_cell_list[current_particle_in_cell]] * vz) + vz * (A31[current_cell_list[current_particle_in_cell]] * vx + A32[current_cell_list[current_particle_in_cell]] * vy + A33[current_cell_list[current_particle_in_cell]] * vz) <= 1.0
-							is_void = false
-						end
-					elseif particle_type == "cuboid"
-						(vx, vy, vz) = (A11[current_cell_list[current_particle_in_cell]] * vx + A12[current_cell_list[current_particle_in_cell]] * vy + A13[current_cell_list[current_particle_in_cell]] * vz,
-										A21[current_cell_list[current_particle_in_cell]] * vx + A22[current_cell_list[current_particle_in_cell]] * vy + A23[current_cell_list[current_particle_in_cell]] * vz,
-										A31[current_cell_list[current_particle_in_cell]] * vx + A32[current_cell_list[current_particle_in_cell]] * vy + A33[current_cell_list[current_particle_in_cell]] * vz)
+			is_void = true
+			current_particle_in_cell = 0
+			while current_particle_in_cell < number_of_particles_current_cell && is_void
+				current_particle_in_cell += 1
 
-						if abs(vx) <= R[current_cell_list[current_particle_in_cell], 1] && abs(vy) <= R[current_cell_list[current_particle_in_cell], 2] && abs(vz) <= R[current_cell_list[current_particle_in_cell], 3]
-							is_void = false
-						end
-					elseif particle_type == "superellipsoid"
-						(vx, vy, vz) = (A11[current_cell_list[current_particle_in_cell]] * vx + A12[current_cell_list[current_particle_in_cell]] * vy + A13[current_cell_list[current_particle_in_cell]] * vz,
-										A21[current_cell_list[current_particle_in_cell]] * vx + A22[current_cell_list[current_particle_in_cell]] * vy + A23[current_cell_list[current_particle_in_cell]] * vz,
-										A31[current_cell_list[current_particle_in_cell]] * vx + A32[current_cell_list[current_particle_in_cell]] * vy + A33[current_cell_list[current_particle_in_cell]] * vz)
+				vx = signed_distance_mod(x[current_point], X[current_cell_list[current_particle_in_cell]], Lx)
+				vy = signed_distance_mod(y[current_point], Y[current_cell_list[current_particle_in_cell]], Ly)
+				vz = signed_distance_mod(z[current_point], Z[current_cell_list[current_particle_in_cell]], Lz)
 
-						if (abs(vx)/R[current_cell_list[current_particle_in_cell], 1])^R[current_cell_list[current_particle_in_cell], 4] +
-							(abs(vy)/R[current_cell_list[current_particle_in_cell], 2])^R[current_cell_list[current_particle_in_cell], 4] +
-							(abs(vz)/R[current_cell_list[current_particle_in_cell], 3])^R[current_cell_list[current_particle_in_cell], 4] <= 1.0
-							is_void = false
-						end
+				if particle_type == "sphere"
+					if vx^2 + vy^2 + vz^2 <= R[current_cell_list[current_particle_in_cell], 1]^2
+						is_void = false
+					end
+				elseif particle_type == "ellipse"
+					# Not supported for S2.
+				elseif particle_type == "ellipsoid"
+					if vx * (A11[current_cell_list[current_particle_in_cell]] * vx + A12[current_cell_list[current_particle_in_cell]] * vy + A13[current_cell_list[current_particle_in_cell]] * vz) + vy * (A21[current_cell_list[current_particle_in_cell]] * vx + A22[current_cell_list[current_particle_in_cell]] * vy + A23[current_cell_list[current_particle_in_cell]] * vz) + vz * (A31[current_cell_list[current_particle_in_cell]] * vx + A32[current_cell_list[current_particle_in_cell]] * vy + A33[current_cell_list[current_particle_in_cell]] * vz) <= 1.0
+						is_void = false
+					end
+				elseif particle_type == "cuboid"
+					(vx, vy, vz) = (A11[current_cell_list[current_particle_in_cell]] * vx + A12[current_cell_list[current_particle_in_cell]] * vy + A13[current_cell_list[current_particle_in_cell]] * vz,
+									A21[current_cell_list[current_particle_in_cell]] * vx + A22[current_cell_list[current_particle_in_cell]] * vy + A23[current_cell_list[current_particle_in_cell]] * vz,
+									A31[current_cell_list[current_particle_in_cell]] * vx + A32[current_cell_list[current_particle_in_cell]] * vy + A33[current_cell_list[current_particle_in_cell]] * vz)
+
+					if abs(vx) <= R[current_cell_list[current_particle_in_cell], 1] && abs(vy) <= R[current_cell_list[current_particle_in_cell], 2] && abs(vz) <= R[current_cell_list[current_particle_in_cell], 3]
+						is_void = false
+					end
+				elseif particle_type == "superellipsoid"
+					(vx, vy, vz) = (A11[current_cell_list[current_particle_in_cell]] * vx + A12[current_cell_list[current_particle_in_cell]] * vy + A13[current_cell_list[current_particle_in_cell]] * vz,
+									A21[current_cell_list[current_particle_in_cell]] * vx + A22[current_cell_list[current_particle_in_cell]] * vy + A23[current_cell_list[current_particle_in_cell]] * vz,
+									A31[current_cell_list[current_particle_in_cell]] * vx + A32[current_cell_list[current_particle_in_cell]] * vy + A33[current_cell_list[current_particle_in_cell]] * vz)
+
+					if (abs(vx)/R[current_cell_list[current_particle_in_cell], 1])^R[current_cell_list[current_particle_in_cell], 4] +
+						(abs(vy)/R[current_cell_list[current_particle_in_cell], 2])^R[current_cell_list[current_particle_in_cell], 4] +
+						(abs(vz)/R[current_cell_list[current_particle_in_cell], 3])^R[current_cell_list[current_particle_in_cell], 4] <= 1.0
+						is_void = false
 					end
 				end
 			end
@@ -136,7 +135,7 @@ function diffuse(	particle_type::String,
 		if indicator[1] # If the origin point is in void, do something, otherwise don't.
 			for current_point = 1:number_of_points
 				if indicator[current_point]
-					S2[current_point] + = 1.0
+					S2[current_point] += 1.0
 				end
 			end
 		end

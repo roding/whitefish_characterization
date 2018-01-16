@@ -53,8 +53,8 @@ function run_characterization()
 	# Read characerization input from file.
 	println(join(("Reading characerization input from file ", input_file_path, "...")))
 	(	output_generation_path::String,
-		d::Array{Float64, 1},
 		number_of_samples::Int64,
+		d::Array{Float64, 1},
 		number_of_cells_x::Int64,
 		number_of_cells_y::Int64,
 		number_of_cells_z::Int64,
@@ -155,9 +155,7 @@ function run_characterization()
 	end
 
 	# Create cell lists.
-	deltat_fine::Float64 = deltat_coarse / convert(Float64, number_of_time_points_fine_per_coarse)
-	sigma::Float64 = sqrt(2.0 * D0 * deltat_fine)
-	cell_overlap::Float64 = 6.0 * sigma
+	cell_overlap::Float64 = 0.0
 	cell_lists::Array{Array{Int64, 1}, 3} = generate_cell_lists(particle_type,
 																R,
 																Lx,
@@ -218,36 +216,25 @@ function run_characterization()
 			d,
 			cell_lists)
 	end
+	S2 /= convert(Float64, number_of_samples)
 
 	# Kill all workers.
-	#rmprocs(workers(); waitfor = typemax(Int))
+	rmprocs(workers(); waitfor = typemax(Int))
 
-	# Process output.
-	msd::Array{Float64, 1} = output[1:number_of_time_points_coarse] ./ convert(Float64, 3 * number_of_diffusers)
-	msd_x::Array{Float64, 1} = output[number_of_time_points_coarse+1:2*number_of_time_points_coarse] ./ convert(Float64, number_of_diffusers)
-	msd_y::Array{Float64, 1} = output[2*number_of_time_points_coarse+1:3*number_of_time_points_coarse] ./ convert(Float64, number_of_diffusers)
-	msd_z::Array{Float64, 1} = output[3*number_of_time_points_coarse+1:4*number_of_time_points_coarse] ./ convert(Float64, number_of_diffusers)
-	D0_empirical::Float64 = output[end] / (3.0 * convert(Float64, number_of_diffusers * (number_of_time_points_coarse-1) * number_of_time_points_fine_per_coarse) * 2.0 * deltat_fine)
 	t_finish_ns::Int64 = convert(Int64, time_ns())
 	t_exec::Float64 = convert(Float64, t_finish_ns - t_start_ns) / 1e9
 
 	# Write output.
-	diagnostic_diffusion_coefficient_ratio::Float64 = D0_empirical / D0
 	write_output(
 		output_file_path,
-		diagnostic_diffusion_coefficient_ratio,
-		deltat_coarse,
-		number_of_time_points_coarse,
-		msd,
-		msd_x,
-		msd_y,
-		msd_z,
+		number_of_samples,
+		d,
+		S2,
 		t_exec)
 	println(join(("Output written to ", output_file_path, ".")))
 	println("Finished.")
-	println(msd[end]/(2.0*(convert(Float64, number_of_time_points_coarse-1) * deltat_coarse)))
 
 	nothing
 end
 
-run_diffusion()
+run_characterization()
