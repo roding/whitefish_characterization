@@ -4,27 +4,19 @@ function read_input(file_path::String)
 	close(file_stream)
 
 	output_generation_path::String = read_key(file_string, "output_generation_path", String)
-	diffusion_coefficient::Float64 = read_key(file_string, "diffusion_coefficient", Float64)
-	deltat_coarse::Float64 = read_key(file_string, "deltat_coarse", Float64)
-	number_of_time_points_coarse::Int64 = read_key(file_string, "number_of_time_points_coarse", Int64)
-	number_of_time_points_fine_per_coarse::Int64 = read_key(file_string, "number_of_time_points_fine_per_coarse", Int64)
-	number_of_diffusers::Int64 = read_key(file_string, "number_of_diffusers", Int64)
+	number_of_samples::Int64 = read_key(file_string, "number_of_samples", Int64)
+	d::Array{Float64, 1} = read_key(file_string, "d", Array{Float64, 1})
 	number_of_cells_x::Int64 = read_key(file_string, "number_of_cells_x", Int64)
 	number_of_cells_y::Int64 = read_key(file_string, "number_of_cells_y", Int64)
 	number_of_cells_z::Int64 = read_key(file_string, "number_of_cells_z", Int64)
-	boundary_condition::String = read_key(file_string, "boundary_condition", String)
 	output_file_path::String = read_key(file_string, "output_file_path", String)
 
 	return (
 		output_generation_path,
-		diffusion_coefficient,
-		deltat_coarse,
-		number_of_time_points_coarse,
-		number_of_time_points_fine_per_coarse,
-		number_of_diffusers,
+		number_of_samples,
+		d,
 		number_of_cells_x,
 		number_of_cells_y,
 		number_of_cells_z,
-		boundary_condition,
 		output_file_path)
 end

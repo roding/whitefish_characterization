@@ -23,12 +23,12 @@ foo = @__FILE__
 @eval @everywhere f = $foo
 @everywhere println(f)
 @everywhere (program_file_dir, program_file_name) = splitdir(f)
-@everywhere include(joinpath(program_file_dir, "diffuse.jl"))
+@everywhere include(joinpath(program_file_dir, "characterize.jl"))
 @everywhere include(joinpath(program_file_dir, "signed_distance_mod.jl"))
 @everywhere include(joinpath(program_file_dir, "position_mod.jl"))
 
 
-function run_diffusion()
+function run_characterization()
 	# Inititalization of random number generation device.
 	random_seed::Int64 = convert(Int64, time_ns())
 	srand(random_seed)
@@ -50,19 +50,15 @@ function run_diffusion()
 		return nothing
 	end
 
-	# Read diffusion input from file.
-	println(join(("Reading diffusion input from file ", input_file_path, "...")))
-
+	# Read characerization input from file.
+	println(join(("Reading characerization input from file ", input_file_path, "...")))
 	(	output_generation_path::String,
-		D0::Float64,
-		deltat_coarse::Float64,
-		number_of_time_points_coarse::Int64,
-		number_of_time_points_fine_per_coarse::Int64,
-		number_of_diffusers::Int64,
+		distance_max::Float64,
+		number_of_points::Int64,
+		number_of_samples::Int64,
 		number_of_cells_x::Int64,
 		number_of_cells_y::Int64,
 		number_of_cells_z::Int64,
-		boundary_condition::String,
 		output_file_path::String) = read_input(input_file_path)
 
 	# Read generation output from file.
@@ -186,16 +182,16 @@ function run_diffusion()
 	println(mean_number_of_particles_per_cell)
 	#return
 
-	# Simulate diffusion.
+	# Run characterization.
 	number_of_workers::Int64 = nworkers() # This is determined by the the '-p' input flag to Julia.
-	number_of_diffusers_per_worker::Array{Int64, 1} = convert(Array{Int64, 1}, floor(number_of_diffusers / number_of_workers) * ones(number_of_workers))
+	number_of_points_per_worker::Array{Int64, 1} = convert(Array{Int64, 1}, floor(number_of_diffusers / number_of_workers) * ones(number_of_workers))
 	number_of_diffusers_remaining::Int64 = number_of_diffusers - sum(number_of_diffusers_per_worker)
 	number_of_diffusers_per_worker[1:number_of_diffusers_remaining] += 1
 	println(number_of_diffusers_per_worker)
 
 	output::Array{Float64, 1} = zeros(4*number_of_time_points_coarse+1)
 	output = @parallel (+) for current_worker = 1:number_of_workers
-		diffuse(
+		characterize(
 			particle_type,
 			R,
 			Lx,
