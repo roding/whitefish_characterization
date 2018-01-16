@@ -1,1 +1,3 @@
-# whitefish_characterization
+# whitefish - characterization module
+
+ Computation of porous structure characteristics.
