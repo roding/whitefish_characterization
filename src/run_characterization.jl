@@ -18,7 +18,6 @@ include("overlap_cuboid_binary.jl")
 include("axis_aligned_bounding_box.jl")
 include("intersect_box_box.jl")
 
-
 foo = @__FILE__
 @eval @everywhere f = $foo
 @everywhere println(f)
@@ -221,8 +220,8 @@ function run_characterization()
 	end
 	S2 /= convert(Float64, number_of_samples)
 
-	# Compute S2.
-	S3::Array{Float64, 1} = zeros(1 + length(d3) * length(theta3))
+	# Compute S3.
+	S3::Array{Float64, 3} = zeros(length(d3), length(d3), length(theta3))
 	S3 = @parallel (+) for current_worker = 1:number_of_workers
 		characterize_S3(
 			particle_type,

@@ -32,28 +32,28 @@ function characterize_S3(	particle_type::String,
 
 	number_of_points_d::Int64 = length(d3)
 	number_of_points_theta::Int64 = length(theta3)
-	number_of_points::Int64 = 1 + number_of_points_d * number_of_points_theta
 
 	x0::Float64 = 0.0
 	y0::Float64 = 0.0
 	z0::Float64 = 0.0
 
-	x_rel::Array{Float64, 1} = [0.0]
-	y_rel::Array{Float64, 1} = [0.0]
-	z_rel::Array{Float64, 1} = [0.0]
-	for current_d = 1:number_of_points_d
-		for current_theta = 1:number_of_points_theta
-			x_rel = cat(1, x_rel, d3[current_d] * cos(theta3[current_theta]))
-			y_rel = cat(1, y_rel, d3[current_d] * sin(theta3[current_theta]))
-			z_rel = cat(1, z_rel, 0.0)
+	x_rel::Array{Float64, 2} = zeros(number_of_points_d, number_of_points_theta)
+	y_rel::Array{Float64, 2} = zeros(number_of_points_d, number_of_points_theta)
+	z_rel::Array{Float64, 2} = zeros(number_of_points_d, number_of_points_theta)
+	for current_point_d = 1:number_of_points_d
+		for current_point_theta = 1:number_of_points_theta
+			x_rel[current_point_d, current_point_theta] = d3[current_point_d] * cos(theta3[current_point_theta])
+			y_rel[current_point_d, current_point_theta] = d3[current_point_d] * sin(theta3[current_point_theta])
+			z_rel[current_point_d, current_point_theta] = 0.0
 		end
 	end
-	x::Array{Float64, 1} = zeros(number_of_points)
-	y::Array{Float64, 1} = zeros(number_of_points)
-	z::Array{Float64, 1} = zeros(number_of_points)
+	x::Array{Float64, 2} = zeros(number_of_points_d, number_of_points_theta)
+	y::Array{Float64, 2} = zeros(number_of_points_d, number_of_points_theta)
+	z::Array{Float64, 2} = zeros(number_of_points_d, number_of_points_theta)
 
-	S3::Array{Float64, 1} = zeros(number_of_points)
-	indicator::Array{Bool, 1} = falses(number_of_points)
+	indicator::Array{Bool, 2} = falses(number_of_points_d, number_of_points_theta)
+	S3::Array{Float64, 3} = zeros(number_of_points_d, number_of_points_d, number_of_points_theta)
+	#count::Array{Float64, 3} = zeros(number_of_points_d, number_of_points_d, number_of_points_theta)
 
 	vx::Float64 = 0.0
 	vy::Float64 = 0.0
@@ -143,78 +143,89 @@ function characterize_S3(	particle_type::String,
 
 			# Rotate the relative coordinates of the 'template' (as adapted from Hlushkou, 2015)
 			# and add the origin coordinate.
-			for current_point = 1:number_of_points
-				x[current_point] = x0 + a11 * x_rel[current_point] + a12 * y_rel[current_point] + a13 * z_rel[current_point]
-				y[current_point] = y0 + a21 * x_rel[current_point] + a22 * y_rel[current_point] + a23 * z_rel[current_point]
-				z[current_point] = z0 + a31 * x_rel[current_point] + a32 * y_rel[current_point] + a33 * z_rel[current_point]
+			for current_point_d = 1:number_of_points_d
+				for current_point_theta = 1:number_of_points_theta
+					x[current_point_d, current_point_theta] = x0 + a11 * x_rel[current_point_d, current_point_theta] + a12 * y_rel[current_point_d, current_point_theta] + a13 * z_rel[current_point_d, current_point_theta]
+					y[current_point_d, current_point_theta] = y0 + a21 * x_rel[current_point_d, current_point_theta] + a22 * y_rel[current_point_d, current_point_theta] + a23 * z_rel[current_point_d, current_point_theta]
+					z[current_point_d, current_point_theta] = z0 + a31 * x_rel[current_point_d, current_point_theta] + a32 * y_rel[current_point_d, current_point_theta] + a33 * z_rel[current_point_d, current_point_theta]
+				end
 			end
 
 			# Convert to absolute coordinates (w.r.t. to Lx, Ly, Lz)
-			for current_point = 1:number_of_points
-				x[current_point] = position_mod(x[current_point], Lx)
-				y[current_point] = position_mod(y[current_point], Ly)
-				z[current_point] = position_mod(z[current_point], Lz)
+			for current_point_d = 1:number_of_points_d
+				for current_point_theta = 1:number_of_points_theta
+					x[current_point_d, current_point_theta] = position_mod(x[current_point_d, current_point_theta], Lx)
+					y[current_point_d, current_point_theta] = position_mod(y[current_point_d, current_point_theta], Ly)
+					z[current_point_d, current_point_theta] = position_mod(z[current_point_d, current_point_theta], Lz)
+				end
 			end
 
 			# Check whether void or solid for each sample point.
-			for current_point = 1:number_of_points
+			for current_point_d = 1:number_of_points_d
+				for current_point_theta = 1:number_of_points_theta
+					current_cell_x = convert(Int64, ceil(x[current_point_d, current_point_theta] / Lx * convert(Float64, number_of_cells_x)))
+					current_cell_y = convert(Int64, ceil(y[current_point_d, current_point_theta] / Ly * convert(Float64, number_of_cells_y)))
+					current_cell_z = convert(Int64, ceil(z[current_point_d, current_point_theta] / Lz * convert(Float64, number_of_cells_z)))
+					number_of_particles_current_cell = length(cell_lists[current_cell_x, current_cell_y, current_cell_z])
+					current_cell_list = cell_lists[current_cell_x, current_cell_y, current_cell_z]
 
-				current_cell_x = convert(Int64, ceil(x[current_point] / Lx * convert(Float64, number_of_cells_x)))
-				current_cell_y = convert(Int64, ceil(y[current_point] / Ly * convert(Float64, number_of_cells_y)))
-				current_cell_z = convert(Int64, ceil(z[current_point] / Lz * convert(Float64, number_of_cells_z)))
-				number_of_particles_current_cell = length(cell_lists[current_cell_x, current_cell_y, current_cell_z])
-				current_cell_list = cell_lists[current_cell_x, current_cell_y, current_cell_z]
+					is_void = true
+					current_particle_in_cell = 0
+					while current_particle_in_cell < number_of_particles_current_cell && is_void
+						current_particle_in_cell += 1
 
-				is_void = true
-				current_particle_in_cell = 0
-				while current_particle_in_cell < number_of_particles_current_cell && is_void
-					current_particle_in_cell += 1
+						vx = signed_distance_mod(x[current_point_d, current_point_theta], X[current_cell_list[current_particle_in_cell]], Lx)
+						vy = signed_distance_mod(y[current_point_d, current_point_theta], Y[current_cell_list[current_particle_in_cell]], Ly)
+						vz = signed_distance_mod(z[current_point_d, current_point_theta], Z[current_cell_list[current_particle_in_cell]], Lz)
 
-					vx = signed_distance_mod(x[current_point], X[current_cell_list[current_particle_in_cell]], Lx)
-					vy = signed_distance_mod(y[current_point], Y[current_cell_list[current_particle_in_cell]], Ly)
-					vz = signed_distance_mod(z[current_point], Z[current_cell_list[current_particle_in_cell]], Lz)
+						if particle_type == "sphere"
+							if vx^2 + vy^2 + vz^2 <= R[current_cell_list[current_particle_in_cell], 1]^2
+								is_void = false
+							end
+						elseif particle_type == "ellipse"
+							# Not supported for S2.
+						elseif particle_type == "ellipsoid"
+							if vx * (A11[current_cell_list[current_particle_in_cell]] * vx + A12[current_cell_list[current_particle_in_cell]] * vy + A13[current_cell_list[current_particle_in_cell]] * vz) + vy * (A21[current_cell_list[current_particle_in_cell]] * vx + A22[current_cell_list[current_particle_in_cell]] * vy + A23[current_cell_list[current_particle_in_cell]] * vz) + vz * (A31[current_cell_list[current_particle_in_cell]] * vx + A32[current_cell_list[current_particle_in_cell]] * vy + A33[current_cell_list[current_particle_in_cell]] * vz) <= 1.0
+								is_void = false
+							end
+						elseif particle_type == "cuboid"
+							(vx, vy, vz) = (A11[current_cell_list[current_particle_in_cell]] * vx + A12[current_cell_list[current_particle_in_cell]] * vy + A13[current_cell_list[current_particle_in_cell]] * vz,
+											A21[current_cell_list[current_particle_in_cell]] * vx + A22[current_cell_list[current_particle_in_cell]] * vy + A23[current_cell_list[current_particle_in_cell]] * vz,
+											A31[current_cell_list[current_particle_in_cell]] * vx + A32[current_cell_list[current_particle_in_cell]] * vy + A33[current_cell_list[current_particle_in_cell]] * vz)
 
-					if particle_type == "sphere"
-						if vx^2 + vy^2 + vz^2 <= R[current_cell_list[current_particle_in_cell], 1]^2
-							is_void = false
-						end
-					elseif particle_type == "ellipse"
-						# Not supported for S2.
-					elseif particle_type == "ellipsoid"
-						if vx * (A11[current_cell_list[current_particle_in_cell]] * vx + A12[current_cell_list[current_particle_in_cell]] * vy + A13[current_cell_list[current_particle_in_cell]] * vz) + vy * (A21[current_cell_list[current_particle_in_cell]] * vx + A22[current_cell_list[current_particle_in_cell]] * vy + A23[current_cell_list[current_particle_in_cell]] * vz) + vz * (A31[current_cell_list[current_particle_in_cell]] * vx + A32[current_cell_list[current_particle_in_cell]] * vy + A33[current_cell_list[current_particle_in_cell]] * vz) <= 1.0
-							is_void = false
-						end
-					elseif particle_type == "cuboid"
-						(vx, vy, vz) = (A11[current_cell_list[current_particle_in_cell]] * vx + A12[current_cell_list[current_particle_in_cell]] * vy + A13[current_cell_list[current_particle_in_cell]] * vz,
-										A21[current_cell_list[current_particle_in_cell]] * vx + A22[current_cell_list[current_particle_in_cell]] * vy + A23[current_cell_list[current_particle_in_cell]] * vz,
-										A31[current_cell_list[current_particle_in_cell]] * vx + A32[current_cell_list[current_particle_in_cell]] * vy + A33[current_cell_list[current_particle_in_cell]] * vz)
+							if abs(vx) <= R[current_cell_list[current_particle_in_cell], 1] && abs(vy) <= R[current_cell_list[current_particle_in_cell], 2] && abs(vz) <= R[current_cell_list[current_particle_in_cell], 3]
+								is_void = false
+							end
+						elseif particle_type == "superellipsoid"
+							(vx, vy, vz) = (A11[current_cell_list[current_particle_in_cell]] * vx + A12[current_cell_list[current_particle_in_cell]] * vy + A13[current_cell_list[current_particle_in_cell]] * vz,
+											A21[current_cell_list[current_particle_in_cell]] * vx + A22[current_cell_list[current_particle_in_cell]] * vy + A23[current_cell_list[current_particle_in_cell]] * vz,
+											A31[current_cell_list[current_particle_in_cell]] * vx + A32[current_cell_list[current_particle_in_cell]] * vy + A33[current_cell_list[current_particle_in_cell]] * vz)
 
-						if abs(vx) <= R[current_cell_list[current_particle_in_cell], 1] && abs(vy) <= R[current_cell_list[current_particle_in_cell], 2] && abs(vz) <= R[current_cell_list[current_particle_in_cell], 3]
-							is_void = false
-						end
-					elseif particle_type == "superellipsoid"
-						(vx, vy, vz) = (A11[current_cell_list[current_particle_in_cell]] * vx + A12[current_cell_list[current_particle_in_cell]] * vy + A13[current_cell_list[current_particle_in_cell]] * vz,
-										A21[current_cell_list[current_particle_in_cell]] * vx + A22[current_cell_list[current_particle_in_cell]] * vy + A23[current_cell_list[current_particle_in_cell]] * vz,
-										A31[current_cell_list[current_particle_in_cell]] * vx + A32[current_cell_list[current_particle_in_cell]] * vy + A33[current_cell_list[current_particle_in_cell]] * vz)
-
-						if (abs(vx)/R[current_cell_list[current_particle_in_cell], 1])^R[current_cell_list[current_particle_in_cell], 4] +
-							(abs(vy)/R[current_cell_list[current_particle_in_cell], 2])^R[current_cell_list[current_particle_in_cell], 4] +
-							(abs(vz)/R[current_cell_list[current_particle_in_cell], 3])^R[current_cell_list[current_particle_in_cell], 4] <= 1.0
-							is_void = false
+							if (abs(vx)/R[current_cell_list[current_particle_in_cell], 1])^R[current_cell_list[current_particle_in_cell], 4] +
+								(abs(vy)/R[current_cell_list[current_particle_in_cell], 2])^R[current_cell_list[current_particle_in_cell], 4] +
+								(abs(vz)/R[current_cell_list[current_particle_in_cell], 3])^R[current_cell_list[current_particle_in_cell], 4] <= 1.0
+								is_void = false
+							end
 						end
 					end
-				end
 
-				if is_void
-					indicator[current_point] = true
-				else
-					indicator[current_point] = false
+					if is_void
+						indicator[current_point_d, current_point_theta] = true
+					else
+						indicator[current_point_d, current_point_theta] = false
+					end
 				end
 			end
 
-			for current_point = 1:number_of_points
-				if indicator[current_point]
-					S3[current_point] += 1.0
+			for current_point_d_1 = 1:number_of_points_d
+				for current_point_d_2 = 1:number_of_points_d
+					for current_point_theta = 1:number_of_points_theta
+						if indicator[current_point_d_1, 1]
+							if indicator[current_point_d_2, current_point_theta]
+								S3[current_point_d_1, current_point_d_2, current_point_theta] += 1.0
+							end
+						end
+					end
 				end
 			end
 		end
