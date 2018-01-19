@@ -79,7 +79,7 @@ function characterize_S3(	particle_type::String,
 	a33::Float64 = 0.0
 
 	for current_sample = 1:number_of_samples
-		if mod(current_sample, 100) == 0
+		if mod(current_sample, 1000) == 0
 			println(current_sample)
 		end
 
@@ -143,6 +143,20 @@ function characterize_S3(	particle_type::String,
 
 			# Rotate the relative coordinates of the 'template' (as adapted from Hlushkou, 2015)
 			# and add the origin coordinate.
+	#		for current_point_d = 1:number_of_points_d
+	#			for current_point_theta = 1:number_of_points_theta
+	#				x[current_point_d, current_point_theta] = a11 * x_rel[current_point_d, current_point_theta] + a12 * y_rel[current_point_d, current_point_theta] + a13 * z_rel[current_point_d, current_point_theta]
+	#				y[current_point_d, current_point_theta] = a21 * x_rel[current_point_d, current_point_theta] + a22 * y_rel[current_point_d, current_point_theta] + a23 * z_rel[current_point_d, current_point_theta]
+	#				z[current_point_d, current_point_theta] = a31 * x_rel[current_point_d, current_point_theta] + a32 * y_rel[current_point_d, current_point_theta] + a33 * z_rel[current_point_d, current_point_theta]
+	#			end
+	#		end
+	#		x_rel = copy(x)
+	#		y_rel = copy(y)
+	#		z_rel = copy(z)
+	#		x = x + x0
+	#		y = y + y0
+	#		z = z + z0
+
 			for current_point_d = 1:number_of_points_d
 				for current_point_theta = 1:number_of_points_theta
 					x[current_point_d, current_point_theta] = x0 + a11 * x_rel[current_point_d, current_point_theta] + a12 * y_rel[current_point_d, current_point_theta] + a13 * z_rel[current_point_d, current_point_theta]

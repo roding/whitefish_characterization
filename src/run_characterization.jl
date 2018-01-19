@@ -20,14 +20,17 @@ include("intersect_box_box.jl")
 
 foo = @__FILE__
 @eval @everywhere f = $foo
-@everywhere println(f)
+#@everywhere println(f)
 @everywhere (program_file_dir, program_file_name) = splitdir(f)
 @everywhere include(joinpath(program_file_dir, "characterize_S2.jl"))
 @everywhere include(joinpath(program_file_dir, "characterize_S3.jl"))
+@everywhere include(joinpath(program_file_dir, "characterize_zeta2.jl"))
 @everywhere include(joinpath(program_file_dir, "signed_distance_mod.jl"))
 @everywhere include(joinpath(program_file_dir, "position_mod.jl"))
 @everywhere include(joinpath(program_file_dir, "rotation_matrix.jl"))
 @everywhere include(joinpath(program_file_dir, "generate_random_unit_quaternion.jl"))
+@everywhere include(joinpath(program_file_dir, "quaternion_mult.jl"))
+@everywhere include(joinpath(program_file_dir, "rotate.jl"))
 
 function run_characterization()
 	# Inititalization of random number generation device.
@@ -173,21 +176,21 @@ function run_characterization()
 																number_of_cells_y,
 																number_of_cells_z,
 																cell_overlap)
-	mean_number_of_particles_per_cell::Float64 = 0.0
-	for i = 1:length(cell_lists)
-		mean_number_of_particles_per_cell += length(cell_lists[i])
-	end
-	mean_number_of_particles_per_cell /= length(cell_lists)
-	#	println(cell_lists)
-	println(mean_number_of_particles_per_cell)
-	#return
+#	mean_number_of_particles_per_cell::Float64 = 0.0
+#	for i = 1:length(cell_lists)
+#		mean_number_of_particles_per_cell += length(cell_lists[i])
+#	end
+#	mean_number_of_particles_per_cell /= length(cell_lists)
+#	#	println(cell_lists)
+#	println(mean_number_of_particles_per_cell)
+#	#return
 
 	# Run characterization.
 	number_of_workers::Int64 = nworkers() # This is determined by the the '-p' input flag to Julia.
 	number_of_samples_per_worker::Array{Int64, 1} = convert(Array{Int64, 1}, floor(number_of_samples / number_of_workers) * ones(number_of_workers))
 	number_of_samples_remaining::Int64 = number_of_samples - sum(number_of_samples_per_worker)
 	number_of_samples_per_worker[1:number_of_samples_remaining] += 1
-	println(number_of_samples_per_worker)
+	#println(number_of_samples_per_worker)
 
 	# Compute S2.
 	S2::Array{Float64, 1} = zeros(size(d2))
@@ -223,37 +226,47 @@ function run_characterization()
 	# Compute S3.
 	S3::Array{Float64, 3} = zeros(length(d3), length(d3), length(theta3))
 	S3 = @parallel (+) for current_worker = 1:number_of_workers
-		characterize_S3(
-			particle_type,
-			R,
-			Lx,
-			Ly,
-			Lz,
-			X,
-			Y,
-			Z,
-			Q0,
-			Q1,
-			Q2,
-			Q3,
-			A11,
-			A12,
-			A13,
-			A21,
-			A22,
-			A23,
-			A31,
-			A32,
-			A33,
-			number_of_samples_per_worker[current_worker],
-			d3,
-			theta3,
-			cell_lists)
+		characterize_S3( particle_type, R, Lx, Ly, Lz, X, Y, Z, Q0, Q1, Q2, Q3,
+			A11, A12, A13, A21, A22, A23, A31, A32, A33,
+			number_of_samples_per_worker[current_worker], d3, theta3, cell_lists)
 	end
 	S3 /= convert(Float64, number_of_samples)
 
+	# Compute zeta2.
+#	zeta2_integral::Array{Float64, 1} = zeros(2)
+#	zeta2_integral = @parallel (+) for current_worker = 1:number_of_workers
+#		characterize_zeta2(
+#			particle_type,
+#			R,
+#			Lx,
+#			Ly,
+#			Lz,
+#			X,
+#			Y,
+#			Z,
+#			Q0,
+#			Q1,
+#			Q2,
+#			Q3,
+#			A11,
+#			A12,
+#			A13,
+#			A21,
+#			A22,
+#			A23,
+#			A31,
+#			A32,
+#			A33,
+#			number_of_samples_per_worker[current_worker],
+#			cell_lists)
+#	end
+#	zeta2_integral /= convert(Float64, number_of_samples)
+#	S1::Float64 = 1.0 - phi
+#	println(zeta2_integral)
+#	println(1 - 9/2/phi/(1-phi)*(zeta2_integral[1] + zeta2_integral[2]/S1))
+
 	# Kill all workers.
-	rmprocs(workers(); waitfor = typemax(Int))
+	#rmprocs(workers(); waitfor = typemax(Int))
 
 	t_finish_ns::Int64 = convert(Int64, time_ns())
 	t_exec::Float64 = convert(Float64, t_finish_ns - t_start_ns) / 1e9

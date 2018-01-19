@@ -1,4 +1,4 @@
-function characterize_S2(	particle_type::String,
+function characterize_zeta2(particle_type::String,
 							R::Array{Float64, 2},
 							Lx::Float64,
 							Ly::Float64,
@@ -20,7 +20,6 @@ function characterize_S2(	particle_type::String,
 							A32::Array{Float64, 1},
 							A33::Array{Float64, 1},
 							number_of_samples::Int64,
-							d2::Array{Float64, 1},
 							cell_lists::Array{Array{Int64, 1}, 3})
 
 	# Number of cells.
@@ -29,16 +28,36 @@ function characterize_S2(	particle_type::String,
 	current_particle_in_cell::Int64 = 0
 	is_void::Bool = true
 
-	number_of_points::Int64 = length(d2)
+	#x0::Float64 = 0.0
+	#y0::Float64 = 0.0
+	#z0::Float64 = 0.0
+
+	number_of_points::Int64 = 7
 	x::Array{Float64, 1} = zeros(number_of_points)
 	y::Array{Float64, 1} = zeros(number_of_points)
 	z::Array{Float64, 1} = zeros(number_of_points)
-	S2::Array{Float64, 1} = zeros(number_of_points)
+
+
+	r::Float64 = 0.0
+	s::Float64 = 0.0
+	theta::Float64 = 0.0
+	mu::Float64 = 1.0
+
+	S2r::Float64 = 0.0
+	S2s::Float64 = 0.0
+	S3::Float64 = 0.0
 	indicator::Array{Bool, 1} = falses(number_of_points)
 
-	vx::Float64 = 0.0
-	vy::Float64 = 0.0
-	vz::Float64 = 0.0
+	zeta2_integral::Array{Float64, 1} = zeros(2)
+	integrand::Float64 = 0.0
+
+	vxr::Float64 = 0.0
+	vyr::Float64 = 0.0
+	vzr::Float64 = 0.0
+	vxs::Float64 = 0.0
+	vys::Float64 = 0.0
+	vzs::Float64 = 0.0
+	magnitude::Float64 = 0.0
 
 	current_cell_x::Int64 = 0
 	current_cell_y::Int64 = 0
@@ -50,24 +69,75 @@ function characterize_S2(	particle_type::String,
 		#	println(current_sample)
 		#end
 
-		# Pick random intial sample position.
-		x0 = Lx * rand()
-		y0 = Ly * rand()
-		z0 = Lz * rand()
+		# Pick random intial sample position for S2r.
+		x[1] = Lx * rand()
+		y[1] = Ly * rand()
+		z[1] = Lz * rand()
 
-		# Pick random direction vector and normalize.
-		vx = randn()
-		vy = randn()
-		vz = randn()
-		magnitude = sqrt(vx * vx + vy * vy + vz * vz)
-		vx /= magnitude
-		vy /= magnitude
-		vz /= magnitude
+		# Pick random intial sample position for S2s.
+		x[3] = Lx * rand()
+		y[3] = Ly * rand()
+		z[3] = Lz * rand()
 
-		# Create vectors of sample coordinates in relative coordinates.
-		x = x0 + vx * d2
-		y = y0 + vy * d2
-		z = z0 + vz * d2
+		# Pick random intial sample position for S3.
+		x[5] = Lx * rand()
+		y[5] = Ly * rand()
+		z[5] = Lz * rand()
+
+		# Pick random radii.
+		r = mu * randexp()
+		s = mu * randexp()
+
+		# Pick random direction and position for r in S2r.
+		vxr = randn()
+		vyr = randn()
+		vzr = randn()
+		magnitude = sqrt(vxr * vxr + vyr * vyr + vzr * vzr)
+		vxr /= magnitude
+		vyr /= magnitude
+		vzr /= magnitude
+		x[2] = x[1] + r * vxr
+		y[2] = y[1] + r * vyr
+		z[2] = z[1] + r * vzr
+
+		# Pick random direction and position for s in S2s.
+		vxs = randn()
+		vys = randn()
+		vzs = randn()
+		magnitude = sqrt(vxs * vxs + vys * vys + vzs * vzs)
+		vxs /= magnitude
+		vys /= magnitude
+		vzs /= magnitude
+		x[4] = x[3] + s * vxs
+		y[4] = y[3] + s * vys
+		z[4] = z[3] + s * vzs
+
+		# Pick random 'r' sample position in random direction for S3.
+		vxr = randn()
+		vyr = randn()
+		vzr = randn()
+		magnitude = sqrt(vxr * vxr + vyr * vyr + vzr * vzr)
+		vxr /= magnitude
+		vyr /= magnitude
+		vzr /= magnitude
+		x[6] = x[5] + r * vxr
+		y[6] = y[5] + r * vyr
+		z[6] = z[5] + r * vzr
+
+		# Pick random 's' sample position in random direction for S3.
+		vxs = randn()
+		vys = randn()
+		vzs = randn()
+		magnitude = sqrt(vxs * vxs + vys * vys + vzs * vzs)
+		vxs /= magnitude
+		vys /= magnitude
+		vzs /= magnitude
+		x[7] = x[5] + s * vxs
+		y[7] = y[5] + s * vys
+		z[7] = z[5] + s * vzs
+
+		# Compute angle between the two vectors.
+		theta = acos(vxs * vxr + vys * vyr + vzs * vzr)
 
 		# Convert to absolute coordinates (w.r.t. to Lx, Ly, Lz)
 		for current_point = 1:number_of_points
@@ -132,14 +202,33 @@ function characterize_S2(	particle_type::String,
 			end
 		end
 
-		if indicator[1] # If the origin point is in void, do something, otherwise don't.
-			for current_point = 1:number_of_points
-				if indicator[current_point]
-					S2[current_point] += 1.0
-				end
-			end
+		# Compute S2 & S3.
+		S2r = 0.0
+		S2s = 0.0
+		S3 = 0.0
+
+		#integrand = 0.0
+
+		if indicator[1] & indicator[2]
+			S2r = 1.0
 		end
+		if indicator[3] & indicator[4]
+			S2s = 1.0
+		end
+		if indicator[5] & indicator[6] & indicator[7]
+			S3 = 1.0
+		end
+
+		integrand1 = 0.5 * (3.0 * cos(theta)^2 - 1.0) * S3
+		integrand2 = 0.5 * (3.0 * cos(theta)^2 - 1.0) * (- S2r * S2s)
+
+		integrand1 /= 1.0 / mu^2 * exp(-r/mu) * exp(-s/mu) * 0.5 # This is the 'weighting' compensation in importance sampling.
+		integrand2 /= 1.0 / mu^2 * exp(-r/mu) * exp(-s/mu) * 0.5 # This is the 'weighting' compensation in importance sampling.
+
+		zeta2_integral[1] += integrand1
+		zeta2_integral[2] += integrand2
+
 	end
 
-	return S2
+	return zeta2_integral
 end
