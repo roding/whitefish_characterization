@@ -104,46 +104,7 @@ function run_characterization()
 	a31::Float64 = 0.0
 	a32::Float64 = 0.0
 	a33::Float64 = 0.0
-	if particle_type == "ellipse"
-		for current_particle = 1:number_of_particles
-			#(a11, a12, a13, a21, a22, a23, a31, a32, a33) = characteristic_matrix_ellipse(Q0[current_particle], Q1[current_particle], Q2[current_particle], Q3[current_particle], R[current_particle, 1], R[current_particle, 2])
-			#A11[current_particle] = a11
-			#A12[current_particle] = a12
-			#A13[current_particle] = a13
-			#A21[current_particle] = a21
-			#A22[current_particle] = a22
-			#A23[current_particle] = a23
-			#A31[current_particle] = a31
-			#A32[current_particle] = a32
-			#A33[current_particle] = a33
-		end
-	elseif particle_type == "ellipsoid"
-		for current_particle = 1:number_of_particles
-			(a11, a12, a13, a21, a22, a23, a31, a32, a33) = inverse_characteristic_matrix_ellipsoid(Q0[current_particle], Q1[current_particle], Q2[current_particle], Q3[current_particle], R[current_particle, 1], R[current_particle, 2], R[current_particle, 3])
-			A11[current_particle] = a11
-			A12[current_particle] = a12
-			A13[current_particle] = a13
-			A21[current_particle] = a21
-			A22[current_particle] = a22
-			A23[current_particle] = a23
-			A31[current_particle] = a31
-			A32[current_particle] = a32
-			A33[current_particle] = a33
-		end
-	elseif particle_type == "cuboid"
-		for current_particle = 1:number_of_particles
-			(a11, a12, a13, a21, a22, a23, a31, a32, a33) = inverse_rotation_matrix(Q0[current_particle], Q1[current_particle], Q2[current_particle], Q3[current_particle])
-			A11[current_particle] = a11
-			A12[current_particle] = a12
-			A13[current_particle] = a13
-			A21[current_particle] = a21
-			A22[current_particle] = a22
-			A23[current_particle] = a23
-			A31[current_particle] = a31
-			A32[current_particle] = a32
-			A33[current_particle] = a33
-		end
-	elseif particle_type == "superellipsoid"
+	if particle_type != "sphere"
 		for current_particle = 1:number_of_particles
 			(a11, a12, a13, a21, a22, a23, a31, a32, a33) = inverse_rotation_matrix(Q0[current_particle], Q1[current_particle], Q2[current_particle], Q3[current_particle])
 			A11[current_particle] = a11
@@ -176,14 +137,6 @@ function run_characterization()
 																number_of_cells_y,
 																number_of_cells_z,
 																cell_overlap)
-#	mean_number_of_particles_per_cell::Float64 = 0.0
-#	for i = 1:length(cell_lists)
-#		mean_number_of_particles_per_cell += length(cell_lists[i])
-#	end
-#	mean_number_of_particles_per_cell /= length(cell_lists)
-#	#	println(cell_lists)
-#	println(mean_number_of_particles_per_cell)
-#	#return
 
 	# Run characterization.
 	number_of_workers::Int64 = nworkers() # This is determined by the the '-p' input flag to Julia.
@@ -194,48 +147,8 @@ function run_characterization()
 
 	# Compute S2.
 	S2::Array{Float64, 1} = zeros(size(d2))
-	S2 = @parallel (+) for current_worker = 1:number_of_workers
-		characterize_S2(
-			particle_type,
-			R,
-			Lx,
-			Ly,
-			Lz,
-			X,
-			Y,
-			Z,
-			Q0,
-			Q1,
-			Q2,
-			Q3,
-			A11,
-			A12,
-			A13,
-			A21,
-			A22,
-			A23,
-			A31,
-			A32,
-			A33,
-			number_of_samples_per_worker[current_worker],
-			d2,
-			cell_lists)
-	end
-	S2 /= convert(Float64, number_of_samples)
-
-	# Compute S3.
-	S3::Array{Float64, 3} = zeros(length(d3), length(d3), length(theta3))
-	S3 = @parallel (+) for current_worker = 1:number_of_workers
-		characterize_S3( particle_type, R, Lx, Ly, Lz, X, Y, Z, Q0, Q1, Q2, Q3,
-			A11, A12, A13, A21, A22, A23, A31, A32, A33,
-			number_of_samples_per_worker[current_worker], d3, theta3, cell_lists)
-	end
-	S3 /= convert(Float64, number_of_samples)
-
-	# Compute zeta2.
-#	zeta2_integral::Array{Float64, 1} = zeros(2)
-#	zeta2_integral = @parallel (+) for current_worker = 1:number_of_workers
-#		characterize_zeta2(
+#	S2 = @parallel (+) for current_worker = 1:number_of_workers
+#		characterize_S2(
 #			particle_type,
 #			R,
 #			Lx,
@@ -258,12 +171,71 @@ function run_characterization()
 #			A32,
 #			A33,
 #			number_of_samples_per_worker[current_worker],
+#			d2,
 #			cell_lists)
 #	end
-#	zeta2_integral /= convert(Float64, number_of_samples)
-#	S1::Float64 = 1.0 - phi
-#	println(zeta2_integral)
-#	println(1 - 9/2/phi/(1-phi)*(zeta2_integral[1] + zeta2_integral[2]/S1))
+#	S2 /= convert(Float64, number_of_samples)
+
+	# Compute S3.
+	number_of_distances::Int64 = length(d3)
+	number_of_angles::Int64 = length(theta3)
+	S3::Array{Float64, 3} = zeros(number_of_distances, number_of_distances, convert(Int64, number_of_angles/2 + 1))
+	S3 = @parallel (+) for current_worker = 1:number_of_workers
+		characterize_S3( particle_type, R, Lx, Ly, Lz, X, Y, Z, Q0, Q1, Q2, Q3,
+			A11, A12, A13, A21, A22, A23, A31, A32, A33,
+			number_of_samples_per_worker[current_worker], d3, theta3, cell_lists)
+	end
+	S3 /= convert(Float64, number_of_samples * number_of_angles)
+
+	# Compute zeta2.
+	S1::Float64 = 1.0 - phi
+	integrand::Array{Float64, 3} = zeros(number_of_distances, number_of_distances, convert(Int64, number_of_angles/2 + 1))
+    for current_r1 = 1:number_of_distances
+        for current_r2 = 1:number_of_distances
+            for current_angle = 1:convert(Int64, number_of_angles/2 + 1)
+                integrand[current_r1, current_r2, current_angle] = 1.0 / d3[current_r1] * 1.0 / d3[current_r2] *
+					0.5 * sin(theta3[current_angle]) * (3.0 * cos(theta3[current_angle])^2 - 1.0) *
+                    ( S3[current_r1, current_r2, current_angle] - S3[current_r1, current_r1, 1] * S3[current_r2, current_r2, 1] / S1 )
+            end
+        end
+    end
+	integral::Float64 = 0.0
+	dr1::Float64 = 0.0
+	dr2::Float64 = 0.0
+	dtheta::Float64 = 0.0
+	for current_r1 = 1:number_of_distances
+		if current_r1 == 1
+			dr1 = 0.5 * (d3[2] - d3[1])
+		elseif current_r1 == number_of_distances
+			dr1 = 0.5 * (d3[number_of_distances] - d3[number_of_distances - 1])
+		else
+			dr1 = 0.5 * (d3[current_r1 + 1] - d3[current_r1 - 1])
+		end
+
+        for current_r2 = 1:number_of_distances
+			if current_r2 == 1
+				dr2 = 0.5 * (d3[2] - d3[1])
+			elseif current_r2 == number_of_distances
+				dr2 = 0.5 * (d3[number_of_distances] - d3[number_of_distances - 1])
+			else
+				dr2 = 0.5 * (d3[current_r2 + 1] - d3[current_r2 - 1])
+			end
+
+            for current_angle = 1:convert(Int64, number_of_angles/2 + 1)
+				if current_angle == 1
+					dtheta = 0.5 * (theta3[2] - theta3[1])
+				elseif current_angle == number_of_distances
+					dtheta = 0.5 * (theta3[convert(Int64, number_of_angles/2 + 1)] - theta3[convert(Int64, number_of_angles/2 + 1) - 1])
+				else
+					dtheta = 0.5 * (theta3[current_angle + 1] - theta3[current_angle - 1])
+				end
+
+				integral += integrand[current_r1, current_r2, current_angle] * dr1 * dr2 * dtheta
+			end
+		end
+	end
+    zeta2::Float64 = 1.0 - 9.0/(2.0 * phi * (1.0 - phi)) * integral
+	println(zeta2)
 
 	# Kill all workers.
 	#rmprocs(workers(); waitfor = typemax(Int))
@@ -280,6 +252,7 @@ function run_characterization()
 		d3,
 		theta3,
 		S3,
+		zeta2,
 		t_exec)
 	println(join(("Output written to ", output_file_path, ".")))
 	println("Finished.")

@@ -30,30 +30,29 @@ function characterize_S3(	particle_type::String,
 	current_particle_in_cell::Int64 = 0
 	is_void::Bool = true
 
-	number_of_points_d::Int64 = length(d3)
-	number_of_points_theta::Int64 = length(theta3)
+	number_of_distances::Int64 = length(d3)
+	number_of_angles::Int64 = length(theta3)
 
 	x0::Float64 = 0.0
 	y0::Float64 = 0.0
 	z0::Float64 = 0.0
 
-	x_rel::Array{Float64, 2} = zeros(number_of_points_d, number_of_points_theta)
-	y_rel::Array{Float64, 2} = zeros(number_of_points_d, number_of_points_theta)
-	z_rel::Array{Float64, 2} = zeros(number_of_points_d, number_of_points_theta)
-	for current_point_d = 1:number_of_points_d
-		for current_point_theta = 1:number_of_points_theta
-			x_rel[current_point_d, current_point_theta] = d3[current_point_d] * cos(theta3[current_point_theta])
-			y_rel[current_point_d, current_point_theta] = d3[current_point_d] * sin(theta3[current_point_theta])
-			z_rel[current_point_d, current_point_theta] = 0.0
+	x_rel::Array{Float64, 2} = zeros(number_of_distances, number_of_angles)
+	y_rel::Array{Float64, 2} = zeros(number_of_distances, number_of_angles)
+	z_rel::Array{Float64, 2} = zeros(number_of_distances, number_of_angles)
+	for current_distance = 1:number_of_distances
+		for current_angle = 1:number_of_angles
+			x_rel[current_distance, current_angle] = d3[current_distance] * cos(theta3[current_angle])
+			y_rel[current_distance, current_angle] = d3[current_distance] * sin(theta3[current_angle])
 		end
 	end
-	x::Array{Float64, 2} = zeros(number_of_points_d, number_of_points_theta)
-	y::Array{Float64, 2} = zeros(number_of_points_d, number_of_points_theta)
-	z::Array{Float64, 2} = zeros(number_of_points_d, number_of_points_theta)
+	x::Array{Float64, 2} = zeros(number_of_distances, number_of_angles)
+	y::Array{Float64, 2} = zeros(number_of_distances, number_of_angles)
+	z::Array{Float64, 2} = zeros(number_of_distances, number_of_angles)
 
-	indicator::Array{Bool, 2} = falses(number_of_points_d, number_of_points_theta)
-	S3::Array{Float64, 3} = zeros(number_of_points_d, number_of_points_d, number_of_points_theta)
-	#count::Array{Float64, 3} = zeros(number_of_points_d, number_of_points_d, number_of_points_theta)
+	indicator_original::BitArray{2} = falses(number_of_distances, number_of_angles)
+	indicator::BitArray{2} = falses(number_of_distances, number_of_angles)
+	S3::Array{Float64, 3} = zeros(number_of_distances, number_of_distances, convert(Int64, number_of_angles/2 + 1))
 
 	vx::Float64 = 0.0
 	vy::Float64 = 0.0
@@ -108,29 +107,26 @@ function characterize_S3(	particle_type::String,
 				if vx^2 + vy^2 + vz^2 <= R[current_cell_list[current_particle_in_cell], 1]^2
 					is_void = false
 				end
-			elseif particle_type == "ellipse"
-				# Not supported for S2.
-			elseif particle_type == "ellipsoid"
-				if vx * (A11[current_cell_list[current_particle_in_cell]] * vx + A12[current_cell_list[current_particle_in_cell]] * vy + A13[current_cell_list[current_particle_in_cell]] * vz) + vy * (A21[current_cell_list[current_particle_in_cell]] * vx + A22[current_cell_list[current_particle_in_cell]] * vy + A23[current_cell_list[current_particle_in_cell]] * vz) + vz * (A31[current_cell_list[current_particle_in_cell]] * vx + A32[current_cell_list[current_particle_in_cell]] * vy + A33[current_cell_list[current_particle_in_cell]] * vz) <= 1.0
-					is_void = false
-				end
-			elseif particle_type == "cuboid"
+			else
 				(vx, vy, vz) = (A11[current_cell_list[current_particle_in_cell]] * vx + A12[current_cell_list[current_particle_in_cell]] * vy + A13[current_cell_list[current_particle_in_cell]] * vz,
 								A21[current_cell_list[current_particle_in_cell]] * vx + A22[current_cell_list[current_particle_in_cell]] * vy + A23[current_cell_list[current_particle_in_cell]] * vz,
 								A31[current_cell_list[current_particle_in_cell]] * vx + A32[current_cell_list[current_particle_in_cell]] * vy + A33[current_cell_list[current_particle_in_cell]] * vz)
-
-				if abs(vx) <= R[current_cell_list[current_particle_in_cell], 1] && abs(vy) <= R[current_cell_list[current_particle_in_cell], 2] && abs(vz) <= R[current_cell_list[current_particle_in_cell], 3]
-					is_void = false
-				end
-			elseif particle_type == "superellipsoid"
-				(vx, vy, vz) = (A11[current_cell_list[current_particle_in_cell]] * vx + A12[current_cell_list[current_particle_in_cell]] * vy + A13[current_cell_list[current_particle_in_cell]] * vz,
-								A21[current_cell_list[current_particle_in_cell]] * vx + A22[current_cell_list[current_particle_in_cell]] * vy + A23[current_cell_list[current_particle_in_cell]] * vz,
-								A31[current_cell_list[current_particle_in_cell]] * vx + A32[current_cell_list[current_particle_in_cell]] * vy + A33[current_cell_list[current_particle_in_cell]] * vz)
-
-				if (abs(vx)/R[current_cell_list[current_particle_in_cell], 1])^R[current_cell_list[current_particle_in_cell], 4] +
-					(abs(vy)/R[current_cell_list[current_particle_in_cell], 2])^R[current_cell_list[current_particle_in_cell], 4] +
-					(abs(vz)/R[current_cell_list[current_particle_in_cell], 3])^R[current_cell_list[current_particle_in_cell], 4] <= 1.0
-					is_void = false
+				if particle_type == "ellipsoid"
+					if  (vx/R[current_cell_list[current_particle_in_cell], 1])^2 +
+						(vy/R[current_cell_list[current_particle_in_cell], 2])^2 +
+						(vz/R[current_cell_list[current_particle_in_cell], 3])^2 <= 1.0
+						is_void = false
+					end
+				elseif particle_type == "cuboid"
+					if abs(vx) <= R[current_cell_list[current_particle_in_cell], 1] && abs(vy) <= R[current_cell_list[current_particle_in_cell], 2] && abs(vz) <= R[current_cell_list[current_particle_in_cell], 3]
+						is_void = false
+					end
+				elseif particle_type == "superellipsoid"
+					if  (abs(vx)/R[current_cell_list[current_particle_in_cell], 1])^R[current_cell_list[current_particle_in_cell], 4] +
+						(abs(vy)/R[current_cell_list[current_particle_in_cell], 2])^R[current_cell_list[current_particle_in_cell], 4] +
+						(abs(vz)/R[current_cell_list[current_particle_in_cell], 3])^R[current_cell_list[current_particle_in_cell], 4] <= 1.0
+						is_void = false
+					end
 				end
 			end
 		end
@@ -143,43 +139,29 @@ function characterize_S3(	particle_type::String,
 
 			# Rotate the relative coordinates of the 'template' (as adapted from Hlushkou, 2015)
 			# and add the origin coordinate.
-	#		for current_point_d = 1:number_of_points_d
-	#			for current_point_theta = 1:number_of_points_theta
-	#				x[current_point_d, current_point_theta] = a11 * x_rel[current_point_d, current_point_theta] + a12 * y_rel[current_point_d, current_point_theta] + a13 * z_rel[current_point_d, current_point_theta]
-	#				y[current_point_d, current_point_theta] = a21 * x_rel[current_point_d, current_point_theta] + a22 * y_rel[current_point_d, current_point_theta] + a23 * z_rel[current_point_d, current_point_theta]
-	#				z[current_point_d, current_point_theta] = a31 * x_rel[current_point_d, current_point_theta] + a32 * y_rel[current_point_d, current_point_theta] + a33 * z_rel[current_point_d, current_point_theta]
-	#			end
-	#		end
-	#		x_rel = copy(x)
-	#		y_rel = copy(y)
-	#		z_rel = copy(z)
-	#		x = x + x0
-	#		y = y + y0
-	#		z = z + z0
-
-			for current_point_d = 1:number_of_points_d
-				for current_point_theta = 1:number_of_points_theta
-					x[current_point_d, current_point_theta] = x0 + a11 * x_rel[current_point_d, current_point_theta] + a12 * y_rel[current_point_d, current_point_theta] + a13 * z_rel[current_point_d, current_point_theta]
-					y[current_point_d, current_point_theta] = y0 + a21 * x_rel[current_point_d, current_point_theta] + a22 * y_rel[current_point_d, current_point_theta] + a23 * z_rel[current_point_d, current_point_theta]
-					z[current_point_d, current_point_theta] = z0 + a31 * x_rel[current_point_d, current_point_theta] + a32 * y_rel[current_point_d, current_point_theta] + a33 * z_rel[current_point_d, current_point_theta]
+			for current_distance = 1:number_of_distances
+				for current_angle = 1:number_of_angles
+					x[current_distance, current_angle] = x0 + a11 * x_rel[current_distance, current_angle] + a12 * y_rel[current_distance, current_angle] + a13 * z_rel[current_distance, current_angle]
+					y[current_distance, current_angle] = y0 + a21 * x_rel[current_distance, current_angle] + a22 * y_rel[current_distance, current_angle] + a23 * z_rel[current_distance, current_angle]
+					z[current_distance, current_angle] = z0 + a31 * x_rel[current_distance, current_angle] + a32 * y_rel[current_distance, current_angle] + a33 * z_rel[current_distance, current_angle]
 				end
 			end
 
 			# Convert to absolute coordinates (w.r.t. to Lx, Ly, Lz)
-			for current_point_d = 1:number_of_points_d
-				for current_point_theta = 1:number_of_points_theta
-					x[current_point_d, current_point_theta] = position_mod(x[current_point_d, current_point_theta], Lx)
-					y[current_point_d, current_point_theta] = position_mod(y[current_point_d, current_point_theta], Ly)
-					z[current_point_d, current_point_theta] = position_mod(z[current_point_d, current_point_theta], Lz)
+			for current_distance = 1:number_of_distances
+				for current_angle = 1:number_of_angles
+					x[current_distance, current_angle] = position_mod(x[current_distance, current_angle], Lx)
+					y[current_distance, current_angle] = position_mod(y[current_distance, current_angle], Ly)
+					z[current_distance, current_angle] = position_mod(z[current_distance, current_angle], Lz)
 				end
 			end
 
 			# Check whether void or solid for each sample point.
-			for current_point_d = 1:number_of_points_d
-				for current_point_theta = 1:number_of_points_theta
-					current_cell_x = convert(Int64, ceil(x[current_point_d, current_point_theta] / Lx * convert(Float64, number_of_cells_x)))
-					current_cell_y = convert(Int64, ceil(y[current_point_d, current_point_theta] / Ly * convert(Float64, number_of_cells_y)))
-					current_cell_z = convert(Int64, ceil(z[current_point_d, current_point_theta] / Lz * convert(Float64, number_of_cells_z)))
+			for current_distance = 1:number_of_distances
+				for current_angle = 1:number_of_angles
+					current_cell_x = convert(Int64, ceil(x[current_distance, current_angle] / Lx * convert(Float64, number_of_cells_x)))
+					current_cell_y = convert(Int64, ceil(y[current_distance, current_angle] / Ly * convert(Float64, number_of_cells_y)))
+					current_cell_z = convert(Int64, ceil(z[current_distance, current_angle] / Lz * convert(Float64, number_of_cells_z)))
 					number_of_particles_current_cell = length(cell_lists[current_cell_x, current_cell_y, current_cell_z])
 					current_cell_list = cell_lists[current_cell_x, current_cell_y, current_cell_z]
 
@@ -188,60 +170,60 @@ function characterize_S3(	particle_type::String,
 					while current_particle_in_cell < number_of_particles_current_cell && is_void
 						current_particle_in_cell += 1
 
-						vx = signed_distance_mod(x[current_point_d, current_point_theta], X[current_cell_list[current_particle_in_cell]], Lx)
-						vy = signed_distance_mod(y[current_point_d, current_point_theta], Y[current_cell_list[current_particle_in_cell]], Ly)
-						vz = signed_distance_mod(z[current_point_d, current_point_theta], Z[current_cell_list[current_particle_in_cell]], Lz)
+						vx = signed_distance_mod(x[current_distance, current_angle], X[current_cell_list[current_particle_in_cell]], Lx)
+						vy = signed_distance_mod(y[current_distance, current_angle], Y[current_cell_list[current_particle_in_cell]], Ly)
+						vz = signed_distance_mod(z[current_distance, current_angle], Z[current_cell_list[current_particle_in_cell]], Lz)
 
 						if particle_type == "sphere"
 							if vx^2 + vy^2 + vz^2 <= R[current_cell_list[current_particle_in_cell], 1]^2
 								is_void = false
 							end
-						elseif particle_type == "ellipse"
-							# Not supported for S2.
-						elseif particle_type == "ellipsoid"
-							if vx * (A11[current_cell_list[current_particle_in_cell]] * vx + A12[current_cell_list[current_particle_in_cell]] * vy + A13[current_cell_list[current_particle_in_cell]] * vz) + vy * (A21[current_cell_list[current_particle_in_cell]] * vx + A22[current_cell_list[current_particle_in_cell]] * vy + A23[current_cell_list[current_particle_in_cell]] * vz) + vz * (A31[current_cell_list[current_particle_in_cell]] * vx + A32[current_cell_list[current_particle_in_cell]] * vy + A33[current_cell_list[current_particle_in_cell]] * vz) <= 1.0
-								is_void = false
-							end
-						elseif particle_type == "cuboid"
+						else
 							(vx, vy, vz) = (A11[current_cell_list[current_particle_in_cell]] * vx + A12[current_cell_list[current_particle_in_cell]] * vy + A13[current_cell_list[current_particle_in_cell]] * vz,
 											A21[current_cell_list[current_particle_in_cell]] * vx + A22[current_cell_list[current_particle_in_cell]] * vy + A23[current_cell_list[current_particle_in_cell]] * vz,
 											A31[current_cell_list[current_particle_in_cell]] * vx + A32[current_cell_list[current_particle_in_cell]] * vy + A33[current_cell_list[current_particle_in_cell]] * vz)
-
-							if abs(vx) <= R[current_cell_list[current_particle_in_cell], 1] && abs(vy) <= R[current_cell_list[current_particle_in_cell], 2] && abs(vz) <= R[current_cell_list[current_particle_in_cell], 3]
-								is_void = false
-							end
-						elseif particle_type == "superellipsoid"
-							(vx, vy, vz) = (A11[current_cell_list[current_particle_in_cell]] * vx + A12[current_cell_list[current_particle_in_cell]] * vy + A13[current_cell_list[current_particle_in_cell]] * vz,
-											A21[current_cell_list[current_particle_in_cell]] * vx + A22[current_cell_list[current_particle_in_cell]] * vy + A23[current_cell_list[current_particle_in_cell]] * vz,
-											A31[current_cell_list[current_particle_in_cell]] * vx + A32[current_cell_list[current_particle_in_cell]] * vy + A33[current_cell_list[current_particle_in_cell]] * vz)
-
-							if (abs(vx)/R[current_cell_list[current_particle_in_cell], 1])^R[current_cell_list[current_particle_in_cell], 4] +
-								(abs(vy)/R[current_cell_list[current_particle_in_cell], 2])^R[current_cell_list[current_particle_in_cell], 4] +
-								(abs(vz)/R[current_cell_list[current_particle_in_cell], 3])^R[current_cell_list[current_particle_in_cell], 4] <= 1.0
-								is_void = false
+							if particle_type == "ellipsoid"
+								if  (vx/R[current_cell_list[current_particle_in_cell], 1])^2 +
+									(vy/R[current_cell_list[current_particle_in_cell], 2])^2 +
+									(vz/R[current_cell_list[current_particle_in_cell], 3])^2 <= 1.0
+									is_void = false
+								end
+							elseif particle_type == "cuboid"
+								if abs(vx) <= R[current_cell_list[current_particle_in_cell], 1] && abs(vy) <= R[current_cell_list[current_particle_in_cell], 2] && abs(vz) <= R[current_cell_list[current_particle_in_cell], 3]
+									is_void = false
+								end
+							elseif particle_type == "superellipsoid"
+								if  (abs(vx)/R[current_cell_list[current_particle_in_cell], 1])^R[current_cell_list[current_particle_in_cell], 4] +
+									(abs(vy)/R[current_cell_list[current_particle_in_cell], 2])^R[current_cell_list[current_particle_in_cell], 4] +
+									(abs(vz)/R[current_cell_list[current_particle_in_cell], 3])^R[current_cell_list[current_particle_in_cell], 4] <= 1.0
+									is_void = false
+								end
 							end
 						end
 					end
 
 					if is_void
-						indicator[current_point_d, current_point_theta] = true
+						indicator_original[current_distance, current_angle] = true
 					else
-						indicator[current_point_d, current_point_theta] = false
+						indicator_original[current_distance, current_angle] = false
 					end
 				end
 			end
 
-			for current_point_d_1 = 1:number_of_points_d
-				for current_point_d_2 = 1:number_of_points_d
-					for current_point_theta = 1:number_of_points_theta
-						if indicator[current_point_d_1, 1]
-							if indicator[current_point_d_2, current_point_theta]
-								S3[current_point_d_1, current_point_d_2, current_point_theta] += 1.0
+			for current_shift = 0:number_of_angles-1
+                indicator = circshift(indicator_original, (0, current_shift));
+                for current_r1 = 1:number_of_distances
+                    if indicator[current_r1, 1]
+						for current_r2 = 1:number_of_distances
+							for current_angle = 1:convert(Int64, number_of_angles / 2 + 1)
+								if indicator[current_r2, current_angle]
+									S3[current_r1, current_r2, current_angle] += 1.0
+								end
 							end
 						end
-					end
-				end
-			end
+                    end
+                end
+            end
 		end
 	end
 
