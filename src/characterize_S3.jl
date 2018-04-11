@@ -78,9 +78,9 @@ function characterize_S3(	particle_type::String,
 	a33::Float64 = 0.0
 
 	for current_sample = 1:number_of_samples
-		if mod(current_sample, 1000) == 0
-			println(current_sample)
-		end
+		#if mod(current_sample, 1000) == 0
+		#	println(current_sample)
+		#end
 
 		# Pick random intial sample position.
 		x0 = Lx * rand()
@@ -211,7 +211,7 @@ function characterize_S3(	particle_type::String,
 			end
 
 			for current_shift = 0:number_of_angles-1
-                indicator = circshift(indicator_original, (0, current_shift));
+                indicator = circshift(indicator_original, (0, current_shift))
                 for current_r1 = 1:number_of_distances
                     if indicator[current_r1, 1]
 						for current_r2 = 1:number_of_distances
